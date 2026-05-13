@@ -65,10 +65,14 @@ public class CalculateSales {
 			br = new BufferedReader(fr);
 
 			String line;
+			String splitLine[];
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
-				// ※ここの読み込み処理を変更してください。(処理内容1-2)
-				System.out.println(line);
+				//カンマ区切りで取得
+				splitLine = line.split(",");
+				//支店コードと支店名をセットで取得
+				branchNames.put(splitLine[0], splitLine[1]);
+				branchSales.put(splitLine[0], (long)0);
 			}
 
 		} catch(IOException e) {
@@ -86,6 +90,25 @@ public class CalculateSales {
 				}
 			}
 		}
+		return true;
+	}
+
+	/**
+	 * 支店別売上集計処理
+	 *
+	 * @param フォルダパス
+	 * @param ファイル名
+	 * @param 支店コードと支店名を保持するMap
+	 * @param 支店コードと売上金額を保持するMap
+	 * @return 書き込み可否
+	 */
+	private static boolean sumSales(String path, String fileName, Map<String, Long> branchSales) {
+		File[] files = new File(path).listFiles();
+		
+		for(File file : files) {
+			
+		}
+
 		return true;
 	}
 
