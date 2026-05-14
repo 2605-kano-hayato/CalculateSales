@@ -170,18 +170,6 @@ public class CalculateSales {
 	}
 
 	/**
-	 * 支店別売上集計処理
-	 *
-	 * @param フォルダパス
-	 * @param 支店コードと支店名を保持するMap
-	 * @param 支店コードと売上金額を保持するMap
-	 * @return 書き込み可否
-	 */
-	private static boolean sumSales(String path, Map<String, Long> branchSales) {
-		return true;
-	}
-
-	/**
 	 * 支店別集計ファイル書き込み処理
 	 *
 	 * @param フォルダパス
