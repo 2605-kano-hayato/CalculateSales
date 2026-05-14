@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class CalculateSales {
@@ -48,9 +49,6 @@ public class CalculateSales {
 		if(!writeFile(args[0], FILE_NAME_BRANCH_OUT, branchNames, branchSales)) {
 			return;
 		}
-
-		System.out.println("正常終了");
-
 	}
 
 	/**
@@ -70,18 +68,35 @@ public class CalculateSales {
 
 		try {
 			File file = new File(path, fileName);
+			//ファイル存在確認
+			if(!file.exists()) {
+				//未存在の場合
+				System.out.println(FILE_NOT_EXIST);
+				return false;
+			}
+
 			FileReader fr = new FileReader(file);
 			br = new BufferedReader(fr);
 
 			String line;
-			String splitLines[];
+			String items[];//★20260514 第一回レビュー splitLinessplitLines → items
+			String formatRegex = "^[0-9]{3}+$";
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
 				//カンマ区切りで取得
-				splitLines = line.split(",");
+				items = line.split(",");
+
+				//フォーマットチェック
+				if(!(items.length == 2 && items[0].matches(formatRegex))) {
+					//フォーマット不正の場合
+					System.out.println(FILE_INVALID_FORMAT);
+					return false;
+				}
+
+
 				//支店コードと支店名をセットで取得
-				branchNames.put(splitLines[0], splitLines[1]);
-				branchSales.put(splitLines[0], 0L);
+				branchNames.put(items[0], items[1]);
+				branchSales.put(items[0], 0L);
 			}
 
 		} catch(IOException e) {
@@ -112,53 +127,59 @@ public class CalculateSales {
 	 */
 	private static boolean sumSales(String path, Map<String, Long> branchSales) {
 		File[] files = new File(path).listFiles();
+		List<File> rcdFiles = new ArrayList<File>();//★20260514 一回目レビュー 追加
 		String fileNameRegex = "^[0-9]{8}.rcd$";
 
 		//集計ファイルフォルダ内のデータで繰り返し
-		for(File file : files) {
+		//★20260514 ↓一回目レビュー 修正 ↓
+		for(int i = 0; i < files.length; i++) {
 			//売上ファイルかチェック
-			if(file.getName().matches(fileNameRegex)){
-				BufferedReader br = null;
-				ArrayList<String> rcds = new ArrayList<String>();
-				//1行目：支店コード、　2行目：売上金額
+			if(files[i].getName().matches(fileNameRegex)){
+				rcdFiles.add(files[i]);
+			}
+		}
 
-				try {
-					FileReader fr = new FileReader(file);
-					br = new BufferedReader(fr);
-					String branchCode;
-					String saleAmount;
+		//売上ファイルの数だけ繰り返し
+		for(int i = 0; i < rcdFiles.size(); i++) {
+			BufferedReader br = null;
+			List<String> rcds = new ArrayList<String>();
 
-					// 支店コード読み込み
-					branchCode = br.readLine();
+			try {
+				FileReader fr = new FileReader(files[i]);
+				br = new BufferedReader(fr);
+				String line;
 
-					//存在する支店コードかチェック
-					if(branchSales.containsKey(branchCode)) {
-						// 売上金額読み込み
-						saleAmount = br.readLine();
+				//ファイル内データ読み込み
+				while((line = br.readLine()) != null) {
+					//読み込み行保持
+					rcds.add(line);
+				}
 
-						// 売上ファイル集計
-						branchSales.replace(
-							branchCode,
-							branchSales.get(branchCode) + Long.parseLong(saleAmount)
-						);
-					}
-				} catch(IOException e) {
-					System.out.println(UNKNOWN_ERROR);
-					return false;
-				} finally {
-					// ファイルを開いている場合
-					if(br != null) {
-						try {
-							// ファイルを閉じる
-							br.close();
-						} catch(IOException e) {
-							System.out.println(UNKNOWN_ERROR);
-							return false;
-						}
+				//売上値取得
+				long fileSale = Long.parseLong(rcds.get(1));
+
+				//売上金額加算
+				Long saleAmount = branchSales.get(rcds.get(0)) + fileSale;
+
+				//売上金額更新
+				branchSales.put(rcds.get(0), saleAmount);
+			} catch(IOException e) {
+				System.out.println(UNKNOWN_ERROR);
+				return false;
+			} finally {
+				// ファイルを開いている場合
+				if(br != null) {
+					try {
+						// ファイルを閉じる
+						br.close();
+					} catch(IOException e) {
+						System.out.println(UNKNOWN_ERROR);
+						return false;
 					}
 				}
 			}
 		}
+		//★20260514 ↑一回目レビュー 修正 扱うデータ単位で繰り返しブロックを分ける↑
 
 		return true;
 	}
@@ -184,17 +205,7 @@ public class CalculateSales {
 
 			//書き込み処理
 			for(String key : branchNames.keySet()) {
-				String branchCode;
-				String branchName;
-				Long saleAmount;
-
-				//情報取得
-				branchCode = key;
-				branchName = branchNames.get(key);
-				saleAmount = branchSales.get(key);
-
-				//書き込み
-				bw.write(branchCode + "," + branchName + "," + saleAmount);
+				bw.write(key + "," + branchNames.get(key) + "," + branchSales.get(key));//★20260514 第一回レビュー 配列などから直接取得に修正
 				bw.newLine();
 			}
 		} catch(IOException e) {
