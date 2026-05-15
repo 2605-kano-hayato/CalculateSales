@@ -27,8 +27,7 @@ public class CalculateSales {
 	private static final String FILE_NOT_SORTED = "売上ファイル名が連番になっていません";
 	private static final String DATA_SALESUMMARY_OVER = "合計金額が10桁を超えました";
 	private static final String DATA_INVALID_BRANCHCODE = "の支店コードが不正です";
-	private static final String FILE_INVALID_BRANCHCODE = "のフォーマットが不正です";
-
+	private static final String FILE_INVALID_SALESUMMARY = "のフォーマットが不正です";
 
 	/**
 	 * メインメソッド
@@ -36,6 +35,12 @@ public class CalculateSales {
 	 * @param コマンドライン引数
 	 */
 	public static void main(String[] args) {
+		//コマンドライン引数チェック
+		if(args.length != 1) {
+			System.out.println(UNKNOWN_ERROR);
+			return;
+		}
+
 		// 支店コードと支店名を保持するMap
 		Map<String, String> branchNames = new HashMap<>();
 		// 支店コードと売上金額を保持するMap
@@ -54,6 +59,7 @@ public class CalculateSales {
 		File[] files = new File(args[0]).listFiles();
 		List<File> rcdFiles = new ArrayList<File>();
 		String fileNameRegex = "^[0-9]{8}.rcd$";
+		String saleNumberRegex = "^[0-9]+$";
 
 		//集計ファイルフォルダ内のデータで繰り返し
 		for(int i = 0; i < files.length; i++) {
@@ -85,7 +91,7 @@ public class CalculateSales {
 			List<String> rcdDatas = new ArrayList<String>();
 
 			try {
-				FileReader fr = new FileReader(files[i]);
+				FileReader fr = new FileReader(rcdFiles.get(i));
 				br = new BufferedReader(fr);
 				String line;
 
@@ -101,9 +107,15 @@ public class CalculateSales {
 					return;
 				}
 
+				//売上値数値チェック
+				if(!(rcdDatas.get(1).matches(saleNumberRegex) && (rcdDatas.get(1).length() <= 10))){
+					System.out.println(UNKNOWN_ERROR);
+					return;
+				}
+
 				//フォーマットチェック
 				if(rcdDatas.size() != 2) {
-					System.out.println(files[i].getName() + FILE_INVALID_BRANCHCODE);
+					System.out.println(files[i].getName() + FILE_INVALID_SALESUMMARY);
 					return;
 				}
 
@@ -112,16 +124,18 @@ public class CalculateSales {
 
 				//売上金額加算
 				Long saleAmount = branchSales.get(rcdDatas.get(0)) + fileSale;
+
 				//桁数チェック
 				if(saleAmount >= 10000000000L){
-					System.out.println(rcdDatas.get(0) + ", " + saleAmount);
 					System.out.println(DATA_SALESUMMARY_OVER);
 					return;
 				}
 
 				//売上金額更新
 				branchSales.put(rcdDatas.get(0), saleAmount);
-
+			} catch(IndexOutOfBoundsException e) {
+				System.out.println(UNKNOWN_ERROR);
+				return;
 			} catch(IOException e) {
 				System.out.println(UNKNOWN_ERROR);
 				return;
@@ -164,6 +178,7 @@ public class CalculateSales {
 
 		try {
 			File file = new File(path, fileName);
+
 			//ファイル存在確認
 			if(!file.exists()) {
 				System.out.println(FILE_NOT_EXIST);
@@ -176,6 +191,7 @@ public class CalculateSales {
 			String line;
 			String items[];
 			String formatRegex = "^[0-9]{3}+$";
+
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
 				//カンマ区切りで取得
@@ -188,12 +204,10 @@ public class CalculateSales {
 					return false;
 				}
 
-
 				//支店コードと支店名をセットで取得
 				branchNames.put(items[0], items[1]);
 				branchSales.put(items[0], 0L);
 			}
-
 		} catch(IOException e) {
 			System.out.println(UNKNOWN_ERROR);
 			return false;
@@ -209,18 +223,7 @@ public class CalculateSales {
 				}
 			}
 		}
-		return true;
-	}
 
-	/**
-	 * 支店別売上集計処理
-	 *
-	 * @param フォルダパス
-	 * @param 支店コードと支店名を保持するMap
-	 * @param 支店コードと売上金額を保持するMap
-	 * @return 書き込み可否
-	 */
-	private static boolean sumSales(String path, Map<String, Long> branchSales) {
 		return true;
 	}
 
