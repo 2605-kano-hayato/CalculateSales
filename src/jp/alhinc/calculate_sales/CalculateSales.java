@@ -28,12 +28,16 @@ public class CalculateSales {
 
 	// エラーメッセージ
 	private static final String UNKNOWN_ERROR = "予期せぬエラーが発生しました";
-	private static final String FILE_NOT_EXIST = "支店定義ファイルが存在しません";
-	private static final String FILE_INVALID_FORMAT = "支店定義ファイルのフォーマットが不正です";
+	private static final String FILE_NOT_EXIST = "@定義ファイルが存在しません";
+	private static final String FILE_INVALID_FORMAT = "@定義ファイルのフォーマットが不正です";
 	private static final String FILE_NOT_SORTED = "売上ファイル名が連番になっていません";
 	private static final String DATA_SALESUMMARY_OVER = "合計金額が10桁を超えました";
-	private static final String DATA_INVALID_BRANCHCODE = "の支店コードが不正です";
+	private static final String DATA_INVALID_CODE = "の@コードが不正です";
 	private static final String FILE_INVALID_SALESUMMARY = "のフォーマットが不正です";
+
+	// ファイル種類
+	private static final String FILE_TYPE_BRANCH = "支店";
+	private static final String FILE_TYPE_COMMODITY = "商品";
 
 	/**
 	 * メインメソッド
@@ -59,14 +63,20 @@ public class CalculateSales {
 
 
 		// 支店定義ファイル読み込み処理
-		if(!readFile(args[0], FILE_NAME_BRANCH_LST, branchNames, branchSales)) {
+		if(!readFile(
+			args[0], FILE_NAME_BRANCH_LST, FILE_TYPE_BRANCH,
+			branchNames, branchSales
+		)) {
 			return;
 		}
 
-//		// 商品定義ファイル読み込み処理
-//		if(!readFile(args[0], FILE_NAME_COMMODITY_LST, commodityNames, commoditySales)) {
-//			return;
-//		}
+		// 商品定義ファイル読み込み処理
+		if(!readFile(
+			args[0], FILE_NAME_COMMODITY_LST, FILE_TYPE_COMMODITY,
+			commodityNames, commoditySales
+		)) {
+			return;
+		}
 
 
 
@@ -75,11 +85,12 @@ public class CalculateSales {
 		List<File> rcdFiles = new ArrayList<File>();
 		String fileNameRegex = "^[0-9]{8}.rcd$";
 		String saleNumberRegex = "^[0-9]+$";
+		String saleCommidityRegex = "^[0-9a-zA-Z]+$";
 
 		//集計ファイルフォルダ内のデータで繰り返し
 		for(int i = 0; i < files.length; i++) {
 			//売上ファイルかチェック
-			if(files[i].getName().matches(fileNameRegex)){
+			if(files[i].isFile() && files[i].getName().matches(fileNameRegex)){
 				rcdFiles.add(files[i]);
 			}
 		}
@@ -116,41 +127,62 @@ public class CalculateSales {
 					rcdDatas.add(line);
 				}
 
-				//支店コード存在チェック
-				if(!branchNames.containsKey(rcdDatas.get(0))) {
-					System.out.println(files[i].getName() + DATA_INVALID_BRANCHCODE);
+				//フォーマットチェック
+				if(rcdDatas.size() != 3) {
+					System.out.println(files[i].getName() + FILE_INVALID_SALESUMMARY);
 					return;
 				}
 
-				//売上値数値チェック
+				//支店コード存在チェック
+				if(!branchNames.containsKey(rcdDatas.get(0))) {
+					System.out.println(files[i].getName() + DATA_INVALID_CODE);
+					return;
+				}
+
+				//商品コードチェック
 				if(
-					!(rcdDatas.get(1).matches(saleNumberRegex) &&
-					 (rcdDatas.get(1).length() <= 10))
+					!(rcdDatas.get(1).matches(saleCommidityRegex) &&
+					 (rcdDatas.get(1).length() == 8))
 				){
 					System.out.println(UNKNOWN_ERROR);
 					return;
 				}
 
-				//フォーマットチェック
-				if(rcdDatas.size() != 2) {
-					System.out.println(files[i].getName() + FILE_INVALID_SALESUMMARY);
+				//売上金額チェック
+				if(
+					!(rcdDatas.get(2).matches(saleNumberRegex) &&
+					 (rcdDatas.get(2).length() <= 10))
+				){
+					System.out.println(UNKNOWN_ERROR);
 					return;
 				}
 
 				//売上値取得
-				long fileSale = Long.parseLong(rcdDatas.get(1));
+				long fileSale = Long.parseLong(rcdDatas.get(2));
 
-				//売上金額加算
-				Long saleAmount = branchSales.get(rcdDatas.get(0)) + fileSale;
+				//支店別売上金額加算
+				Long branchSaleAmount = branchSales.get(rcdDatas.get(0)) + fileSale;
 
 				//桁数チェック
-				if(saleAmount >= 10000000000L){
+				if(branchSaleAmount >= 10000000000L){
 					System.out.println(DATA_SALESUMMARY_OVER);
 					return;
 				}
 
-				//売上金額更新
-				branchSales.put(rcdDatas.get(0), saleAmount);
+				//商品別売上金額加算
+				Long commoditySaleAmount = commoditySales.get(rcdDatas.get(1)) + fileSale;
+
+				//桁数チェック
+				if(commoditySaleAmount >= 10000000000L){
+					System.out.println(DATA_SALESUMMARY_OVER);
+					return;
+				}
+
+				//支店別売上金額更新
+				branchSales.put(rcdDatas.get(0), branchSaleAmount);
+
+				//商品別売上金額更新
+				commoditySales.put(rcdDatas.get(1), commoditySaleAmount);
 			} catch(IndexOutOfBoundsException e) {
 				System.out.println(UNKNOWN_ERROR);
 				return;
@@ -177,6 +209,11 @@ public class CalculateSales {
 		if(!writeFile(args[0], FILE_NAME_BRANCH_OUT, branchNames, branchSales)) {
 			return;
 		}
+
+		// 商品別集計ファイル書き込み処理
+		if(!writeFile(args[0], FILE_NAME_COMMODITY_OUT, commodityNames, commoditySales)) {
+			return;
+		}
 	}
 
 	/**
@@ -184,12 +221,13 @@ public class CalculateSales {
 	 *
 	 * @param フォルダパス
 	 * @param ファイル名
-	 * @param コードとデータ名を保持するMap
-	 * @param コードとデータ値を保持するMap
+	 * @param ファイル種類
+	 * @param コードと名称を保持するMap
+	 * @param コードと売上金額を保持するMap
 	 * @return 読み込み可否
 	 */
 	private static boolean readFile(
-		String path, String fileName,
+		String path, String fileName, String fileType,
 		Map<String, String> dataNames, Map<String, Long> dataSales
 	) {
 		BufferedReader br = null;
@@ -199,7 +237,7 @@ public class CalculateSales {
 
 			//ファイル存在確認
 			if(!file.exists()) {
-				System.out.println(FILE_NOT_EXIST);
+				System.out.println(FILE_NOT_EXIST.replace("@", fileType));
 				return false;
 			}
 
@@ -209,7 +247,8 @@ public class CalculateSales {
 			String line;
 			String items[];
 			String formatRegex;
-			//ファイルごとの正規表現規制
+
+			//ファイルごとの分岐処理
 			switch(fileName) {
 			case FILE_NAME_BRANCH_LST:
 				formatRegex = "^[0-9]{3}$";
@@ -230,7 +269,7 @@ public class CalculateSales {
 				//フォーマットチェック
 				if(items.length != 2 || !items[0].matches(formatRegex)) {
 					//フォーマット不正の場合
-					System.out.println(FILE_INVALID_FORMAT);
+					System.out.println(FILE_INVALID_FORMAT.replace("@", fileType));
 					return false;
 				}
 
@@ -258,12 +297,12 @@ public class CalculateSales {
 	}
 
 	/**
-	 * 支店別集計ファイル書き込み処理
+	 * 集計ファイル書き込み処理
 	 *
 	 * @param フォルダパス
 	 * @param ファイル名
-	 * @param 支店コードと支店名を保持するMap
-	 * @param 支店コードと売上金額を保持するMap
+	 * @param コードと名称を保持するMap
+	 * @param コードと売上金額を保持するMap
 	 * @return 書き込み可否
 	 */
 	private static boolean writeFile(
