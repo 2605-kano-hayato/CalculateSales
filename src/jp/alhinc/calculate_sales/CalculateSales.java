@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,11 @@ public class CalculateSales {
 	private static final String UNKNOWN_ERROR = "予期せぬエラーが発生しました";
 	private static final String FILE_NOT_EXIST = "支店定義ファイルが存在しません";
 	private static final String FILE_INVALID_FORMAT = "支店定義ファイルのフォーマットが不正です";
+	private static final String FILE_NOT_SORTED = "売上ファイル名が連番になっていません";
+	private static final String DATA_SALESUMMARY_OVER = "合計金額が10桁を超えました";
+	private static final String DATA_INVALID_BRANCHCODE = "の支店コードが不正です";
+	private static final String FILE_INVALID_BRANCHCODE = "のフォーマットが不正です";
+
 
 	/**
 	 * メインメソッド
@@ -35,20 +41,21 @@ public class CalculateSales {
 		// 支店コードと売上金額を保持するMap
 		Map<String, Long> branchSales = new HashMap<>();
 
+
+
 		// 支店定義ファイル読み込み処理
 		if(!readFile(args[0], FILE_NAME_BRANCH_LST, branchNames, branchSales)) {
 			return;
 		}
 
 
+
 		//集計処理
-		//★20260514 ↓一回目レビュー_2 修正 ↓
 		File[] files = new File(args[0]).listFiles();
-		List<File> rcdFiles = new ArrayList<File>();//★20260514 一回目レビュー 追加
+		List<File> rcdFiles = new ArrayList<File>();
 		String fileNameRegex = "^[0-9]{8}.rcd$";
 
 		//集計ファイルフォルダ内のデータで繰り返し
-		//★20260514 ↓一回目レビュー 修正 ↓
 		for(int i = 0; i < files.length; i++) {
 			//売上ファイルかチェック
 			if(files[i].getName().matches(fileNameRegex)){
@@ -56,10 +63,26 @@ public class CalculateSales {
 			}
 		}
 
+		//売上ファイルリストのソート
+		Collections.sort(rcdFiles);
+
+		//売上ファイル名連番チェック
+		for(int i = 0; i < rcdFiles.size()-1; i++) {
+			//ファイル名取得
+			int former = Integer.parseInt(rcdFiles.get(i).getName().substring(0, 8));
+			int latter = Integer.parseInt(rcdFiles.get(i+1).getName().substring(0, 8));
+
+			//連番チェック
+			if((latter - former) != 1) {
+				System.out.println(FILE_NOT_SORTED);
+				return;
+			}
+		}
+
 		//売上ファイルの数だけ繰り返し
 		for(int i = 0; i < rcdFiles.size(); i++) {
 			BufferedReader br = null;
-			List<String> rcds = new ArrayList<String>();
+			List<String> rcdDatas = new ArrayList<String>();
 
 			try {
 				FileReader fr = new FileReader(files[i]);
@@ -69,15 +92,36 @@ public class CalculateSales {
 				//ファイル内データ読み込み
 				while((line = br.readLine()) != null) {
 					//読み込み行保持
-					rcds.add(line);
+					rcdDatas.add(line);
+				}
+
+				//支店コード存在チェック
+				if(!branchNames.containsKey(rcdDatas.get(0))) {
+					System.out.println(files[i].getName() + DATA_INVALID_BRANCHCODE);
+					return;
+				}
+
+				//フォーマットチェック
+				if(rcdDatas.size() != 2) {
+					System.out.println(files[i].getName() + FILE_INVALID_BRANCHCODE);
+					return;
 				}
 
 				//売上値取得
-				long fileSale = Long.parseLong(rcds.get(1));
+				long fileSale = Long.parseLong(rcdDatas.get(1));
+
 				//売上金額加算
-				Long saleAmount = branchSales.get(rcds.get(0)) + fileSale;
+				Long saleAmount = branchSales.get(rcdDatas.get(0)) + fileSale;
+				//桁数チェック
+				if(saleAmount >= 10000000000L){
+					System.out.println(rcdDatas.get(0) + ", " + saleAmount);
+					System.out.println(DATA_SALESUMMARY_OVER);
+					return;
+				}
+
 				//売上金額更新
-				branchSales.put(rcds.get(0), saleAmount);
+				branchSales.put(rcdDatas.get(0), saleAmount);
+
 			} catch(IOException e) {
 				System.out.println(UNKNOWN_ERROR);
 				return;
@@ -94,7 +138,6 @@ public class CalculateSales {
 				}
 			}
 		}
-		//★20260514 ↑一回目レビュー 修正↑
 
 
 
@@ -131,7 +174,7 @@ public class CalculateSales {
 			br = new BufferedReader(fr);
 
 			String line;
-			String items[];//★20260514 第一回レビュー splitLinessplitLines → items
+			String items[];
 			String formatRegex = "^[0-9]{3}+$";
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
@@ -202,7 +245,7 @@ public class CalculateSales {
 
 			//書き込み処理
 			for(String key : branchNames.keySet()) {
-				bw.write(key + "," + branchNames.get(key) + "," + branchSales.get(key));//★20260514 第一回レビュー 配列などから直接取得に修正
+				bw.write(key + "," + branchNames.get(key) + "," + branchSales.get(key));
 				bw.newLine();
 			}
 		} catch(IOException e) {
