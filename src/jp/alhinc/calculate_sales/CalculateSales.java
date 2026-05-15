@@ -20,6 +20,12 @@ public class CalculateSales {
 	// 支店別集計ファイル名
 	private static final String FILE_NAME_BRANCH_OUT = "branch.out";
 
+	// 商品定義ファイル名
+	private static final String FILE_NAME_COMMODITY_LST = "commodity.lst";
+
+	// 商品別集計ファイル名
+	private static final String FILE_NAME_COMMODITY_OUT = "commodity.out";
+
 	// エラーメッセージ
 	private static final String UNKNOWN_ERROR = "予期せぬエラーが発生しました";
 	private static final String FILE_NOT_EXIST = "支店定義ファイルが存在しません";
@@ -45,6 +51,10 @@ public class CalculateSales {
 		Map<String, String> branchNames = new HashMap<>();
 		// 支店コードと売上金額を保持するMap
 		Map<String, Long> branchSales = new HashMap<>();
+		// 商品コードと商品名を保持するMap
+		Map<String, String> commodityNames = new HashMap<>();
+		// 商品コードと売上金額を保持するMap
+		Map<String, Long> commoditySales = new HashMap<>();
 
 
 
@@ -52,6 +62,11 @@ public class CalculateSales {
 		if(!readFile(args[0], FILE_NAME_BRANCH_LST, branchNames, branchSales)) {
 			return;
 		}
+
+//		// 商品定義ファイル読み込み処理
+//		if(!readFile(args[0], FILE_NAME_COMMODITY_LST, commodityNames, commoditySales)) {
+//			return;
+//		}
 
 
 
@@ -108,7 +123,10 @@ public class CalculateSales {
 				}
 
 				//売上値数値チェック
-				if(!(rcdDatas.get(1).matches(saleNumberRegex) && (rcdDatas.get(1).length() <= 10))){
+				if(
+					!(rcdDatas.get(1).matches(saleNumberRegex) &&
+					 (rcdDatas.get(1).length() <= 10))
+				){
 					System.out.println(UNKNOWN_ERROR);
 					return;
 				}
@@ -162,17 +180,17 @@ public class CalculateSales {
 	}
 
 	/**
-	 * 支店定義ファイル読み込み処理
+	 * 定義ファイル読み込み処理
 	 *
 	 * @param フォルダパス
 	 * @param ファイル名
-	 * @param 支店コードと支店名を保持するMap
-	 * @param 支店コードと売上金額を保持するMap
+	 * @param コードとデータ名を保持するMap
+	 * @param コードとデータ値を保持するMap
 	 * @return 読み込み可否
 	 */
 	private static boolean readFile(
 		String path, String fileName,
-		Map<String, String> branchNames, Map<String, Long> branchSales
+		Map<String, String> dataNames, Map<String, Long> dataSales
 	) {
 		BufferedReader br = null;
 
@@ -190,7 +208,19 @@ public class CalculateSales {
 
 			String line;
 			String items[];
-			String formatRegex = "^[0-9]{3}+$";
+			String formatRegex;
+			//ファイルごとの正規表現規制
+			switch(fileName) {
+			case FILE_NAME_BRANCH_LST:
+				formatRegex = "^[0-9]{3}$";
+				break;
+			case FILE_NAME_COMMODITY_LST:
+				formatRegex = "^[0-9a-zA-Z]{8}$";
+				break;
+			default:
+				formatRegex = "";
+				break;
+			};
 
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
@@ -204,9 +234,9 @@ public class CalculateSales {
 					return false;
 				}
 
-				//支店コードと支店名をセットで取得
-				branchNames.put(items[0], items[1]);
-				branchSales.put(items[0], 0L);
+				//コードと名称をセットで取得
+				dataNames.put(items[0], items[1]);
+				dataSales.put(items[0], 0L);
 			}
 		} catch(IOException e) {
 			System.out.println(UNKNOWN_ERROR);
