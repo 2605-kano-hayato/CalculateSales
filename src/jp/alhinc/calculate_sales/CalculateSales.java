@@ -62,9 +62,12 @@ public class CalculateSales {
 
 
 
+
+		String regexCommodity = "";
+
 		// 支店定義ファイル読み込み処理
 		if(!readFile(
-			args[0], FILE_NAME_BRANCH_LST, FILE_TYPE_BRANCH,
+			args[0], FILE_NAME_BRANCH_LST, FILE_TYPE_BRANCH, "^[0-9]{3}$",
 			branchNames, branchSales
 		)) {
 			return;
@@ -72,7 +75,7 @@ public class CalculateSales {
 
 		// 商品定義ファイル読み込み処理
 		if(!readFile(
-			args[0], FILE_NAME_COMMODITY_LST, FILE_TYPE_COMMODITY,
+			args[0], FILE_NAME_COMMODITY_LST, FILE_TYPE_COMMODITY, "^[0-9a-zA-Z]{8}$",
 			commodityNames, commoditySales
 		)) {
 			return;
@@ -220,7 +223,7 @@ public class CalculateSales {
 	 * @return 読み込み可否
 	 */
 	private static boolean readFile(
-		String path, String fileName, String fileType,
+		String path, String fileName, String fileType, String formatRegex,
 		Map<String, String> dataNames, Map<String, Long> dataSales
 	) {
 		BufferedReader br = null;
@@ -239,20 +242,6 @@ public class CalculateSales {
 
 			String line;
 			String items[];
-			String formatRegex;
-
-			//ファイルごとの分岐処理
-			switch(fileName) {
-			case FILE_NAME_BRANCH_LST:
-				formatRegex = "^[0-9]{3}$";
-				break;
-			case FILE_NAME_COMMODITY_LST:
-				formatRegex = "^[0-9a-zA-Z]{8}$";
-				break;
-			default:
-				formatRegex = "";
-				break;
-			};
 
 			// 一行ずつ読み込む
 			while((line = br.readLine()) != null) {
