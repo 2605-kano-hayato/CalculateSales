@@ -84,8 +84,6 @@ public class CalculateSales {
 		File[] files = new File(args[0]).listFiles();
 		List<File> rcdFiles = new ArrayList<File>();
 		String fileNameRegex = "^[0-9]{8}.rcd$";
-		String saleNumberRegex = "^[0-9]+$";
-		String saleCommidityRegex = "^[0-9a-zA-Z]+$";
 
 		//集計ファイルフォルダ内のデータで繰り返し
 		for(int i = 0; i < files.length; i++) {
@@ -135,25 +133,19 @@ public class CalculateSales {
 
 				//支店コード存在チェック
 				if(!branchNames.containsKey(rcdDatas.get(0))) {
-					System.out.println(files[i].getName() + DATA_INVALID_CODE);
+					System.out.println(
+						files[i].getName() +
+						DATA_INVALID_CODE.replace("@", FILE_TYPE_BRANCH)
+					);
 					return;
 				}
 
-				//商品コードチェック
-				if(
-					!(rcdDatas.get(1).matches(saleCommidityRegex) &&
-					 (rcdDatas.get(1).length() == 8))
-				){
-					System.out.println(UNKNOWN_ERROR);
-					return;
-				}
-
-				//売上金額チェック
-				if(
-					!(rcdDatas.get(2).matches(saleNumberRegex) &&
-					 (rcdDatas.get(2).length() <= 10))
-				){
-					System.out.println(UNKNOWN_ERROR);
+				//商品コード存在チェック
+				if(!commodityNames.containsKey(rcdDatas.get(1))) {
+					System.out.println(
+						files[i].getName() +
+						DATA_INVALID_CODE.replace("@", FILE_TYPE_COMMODITY)
+					);
 					return;
 				}
 
@@ -183,6 +175,7 @@ public class CalculateSales {
 
 				//商品別売上金額更新
 				commoditySales.put(rcdDatas.get(1), commoditySaleAmount);
+				System.out.println();
 			} catch(IndexOutOfBoundsException e) {
 				System.out.println(UNKNOWN_ERROR);
 				return;
